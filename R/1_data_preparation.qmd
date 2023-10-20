@@ -1,0 +1,70 @@
+---
+title: "1_limma"
+output: html_document
+date: "2022-12-25"
+---
+
+Load in libraries and functions
+```{r, message=FALSE, error=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+
+source(here::here("R/libraries.R"))
+source(here::here("R/functions.R"))
+source(here::here("R/metadata.R"))
+
+```
+
+
+
+```{r, warning=FALSE}
+#df
+df <- read_excel(here::here('data-raw/tinres_data_v2.xlsx')) %>% 
+    dplyr::select(-c("s_1", "s_2", "s_3", "s_4", "s_5", "s_6", "s_7", "s_8", "s_13", "s_15", "s_50", "s_52")) %>% 
+    mutate_at(vars(-c("protein", "gene")), as.numeric) %>% #Change all to numeric except "protein" and "gene"
+    mutate_all(~replace(., is.nan(.), NA)) %>% 
+    dplyr::filter(gene!="NA") %>%  #This line removes 12 proteins without gene name. With their uniprot accession numbers they are identified as non-human trypsin, albumin, immunoglobins (i.e. probably related to sample prep). One exception is CALM1, which I have manually annotated.
+    mutate(gene = make.names(gene, unique=TRUE), gene) %>% 
+    filter(!grepl(
+        "KRT", gene,
+        "A0A0B4J2D5", gene
+                  )) %>% 
+    column_to_rownames(var="gene") %>% 
+    dplyr::select(-'protein') %>% 
+    mutate_if(is.numeric, log2)
+
+```
+
+
+#Normalization
+
+Let's first look at the current intensity distributions.
+
+```{r}
+
+boxplot(df)
+
+```
+
+```{r}
+df_normalized <- medianScaling(df)
+
+boxplot(df_normalized)
+```
+
+
+Let's move on to create a SummarizedExperiment
+
+```{r, warning=FALSE, message=FALSE}
+se_raw <- PhosphoExperiment(assay = list(df_normalized), colData=metadata)
+
+```
+
+
+
+Save summarized experiment to 'data' folder.
+```{r}
+usethis::use_data(se_raw, overwrite = TRUE)
+```
+
+

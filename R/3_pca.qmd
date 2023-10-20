@@ -1,0 +1,69 @@
+---
+title: "Untitled"
+output: html_document
+date: "2023-01-01"
+---
+
+```{r, message=FALSE, error=FALSE}
+source(here::here("R/libraries.R"))
+source(here::here("R/functions.R"))
+source(here::here("R/data_files_and_results.R"))
+source(here::here("R/metadata.R"))
+
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+
+
+```
+
+
+PCA plot of all fibers at baseline
+```{r}
+
+#
+df_pca_pre <- SummarizedExperiment::assay(se_res_pre) %>%
+    t() %>% 
+    as.data.frame() %>% 
+    merge(metadata_res_pre, by=0, all.x=TRUE) %>% 
+    dplyr::select(-c("time", "intervention")) %>% 
+    relocate(id, .after = Row.names) %>% 
+    relocate(fiber_type, .after = Row.names) %>%  
+    column_to_rownames("Row.names")
+
+#Set seed for reproducible imputation
+set.seed(99)
+
+#Run PCA analysis
+pca_pre <- pca(df_pca_pre, method="ppca", nPcs=2)
+
+#Merge analysis wit PCA data frame. Also creates a new column which concatenates fiber_type and id column for PCA coloring.
+df_pca_pre <- merge(df_pca_pre, scores(pca_pre), by=0) %>% 
+    dplyr::select(-"Row.names")
+    
+#Visualize
+ggplot(df_pca_pre, aes(PC1, PC2, color=fiber_type))+
+    geom_point(size=10, alpha = 0.7)+
+    scale_color_manual(values=c("#069DBF", "#024059"),
+                       labels = c("I",
+                                "II"))+
+    theme(
+        panel.background = element_rect(color = "black", fill=NA, size = 0.5),
+        plot.title = element_text(face = "bold", hjust = 0.5),
+        plot.background = element_rect(fill = NA, colour = NA),
+        panel.grid.minor=element_blank(),
+        panel.grid.major = element_blank(),
+        axis.line = element_line(colour = "black", size = 0.5),
+        legend.text=element_text(size=15),
+        legend.title = element_blank(),
+        legend.key = element_blank(),
+        axis.text.x = element_text(color="black", size=15),
+        axis.text.y = element_text(color="black", size=15),
+        axis.title=element_text(size=15)
+        )+
+        xlab(paste("PC1 (", round(pca_pre@R2[1] * 100, digits = 1), "% of variance)", sep=""))+
+        ylab(paste("PC2 (", round(pca_pre@R2[2] * 100, digits = 1), "% of variance)", sep=""))+
+        ggtitle("PCA")
+
+ggplot2::ggsave(here::here('data/figures/pca_pre.pdf'), height = 7, width = 10)
+
+```
+

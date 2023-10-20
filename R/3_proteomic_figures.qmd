@@ -1,0 +1,63 @@
+---
+title: "proteomic_figures"
+output: html_document
+date: "2022-12-29"
+---
+
+Load in libraries and functions
+```{r, message=FALSE, error=FALSE}
+
+source(here::here("R/libraries.R"))
+source(here::here("R/functions.R"))
+source(here::here("R/metadata.R"))
+
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+
+#Load in data files
+load(here::here("data/df_long_mean_pre.rda"))
+load(here::here("data/df_long_pre.rda"))
+
+```
+
+l2fc, both treatments
+```{r}
+
+ggplot(df_long_mean_pre, aes(x=protein, y=median, color=fiber_type, fill = fiber_type))+
+    geom_col(posit=position_dodge2(width=1))+
+    scale_color_manual(values=c("#069DBF", "#024059"))+
+    scale_fill_manual(values=c("#069DBF", "#024059"))+
+    theme(axis.text.x= element_text(angle = 90, vjust = 0.5, hjust=1, color="black", size=8),
+        panel.background = element_rect(color = "black", fill=NA, size = 0.5),
+        panel.grid.minor=element_blank(),
+        panel.grid.major = element_blank(),
+        plot.background = element_blank(),
+        axis.line = element_line(color="black", size = 0.5),
+        axis.text = element_text(color="black")
+          )+
+    ggtitle("Type I vs. Type IIa fiber pools - all ribosomal proteins")+
+    labs(y="Median", x="Protein")
+
+ggplot2::ggsave('data/figures/all_ribosomal_pre.pdf', height=5, width=15)
+
+
+```
+
+Absolute values for protein of choice
+```{r}
+choice = "RPL13"
+
+ggplot(df_long_pre[df_long_pre$protein == choice,], aes(x=fiber_type, y=abundance))+
+    geom_violin(trim = TRUE, width=1, color=NA, alpha=0.5, aes(fill=fiber_type))+
+    geom_point(size=5, alpha=0.5, position=position_dodge(width=1))+
+    scale_fill_manual(values=c("#0078b0", "#c41b1b"))+
+    ylab("Abundance")+
+    xlab("Fiber type")+
+    theme(axis.line = element_line(colour = "black"),
+          legend.position = "none",
+          text = element_text(size = 12),
+          axis.text.x= element_text(color="black"),
+          axis.text.y= element_text(color="black")
+          )
+ggplot2::ggsave(here::here('data/figures/RPL13.pdf'))
+
+```

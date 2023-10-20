@@ -1,0 +1,25 @@
+---
+title: "3_visualization"
+output: html_document
+date: "2022-12-30"
+---
+
+Load in libraries and functions
+```{r, message=FALSE, error=FALSE}
+source(here::here("R/libraries.R"))
+source(here::here("R/functions.R"))
+source(here::here("R/metadata.R"))
+
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+
+load(here::here("data/results_pre.rda"))
+
+```
+
+#Q value (Storey & Tibshirani)
+```{r}
+volcano(results_pre, q, 0.05) #q-value (Storey & Tibshirani. Also acceps 'xiao' or 'p')
+
+ggplot2::ggsave(here::here('data/figures/volcano_pre.pdf'))
+```
+

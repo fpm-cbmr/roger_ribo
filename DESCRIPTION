@@ -1,0 +1,46 @@
+Package: 2022_tinres
+Type: Project
+Version: 0.0.1
+Imports:
+    biomaRt,
+    clusterProfiler,
+    cowplot,
+    DEP,
+    DOSE,
+    dplyr,
+    DT,
+    eulerr,
+    extrafont,
+    factoextra,
+    FactoMineR,
+    ggplot2,
+    ggpmisc,
+    ggpubr,
+    ggrepel,
+    ggridges,
+    GO.db,
+    knitr,
+    org.Hs.eg.db,
+    patchwork,
+    pcaMethods,
+    pheatmap,
+    PhosR,
+    plotly,
+    qvalue,
+    readxl,
+    reshape2,
+    rlang,
+    rmarkdown,
+    snakecase,
+    statmod,
+    SummarizedExperiment,
+    svglite,
+    usethis,
+    writexl,
+    yaml
+Encoding: UTF-8
+Depends: 
+    limma,
+    R (>= 2.10),
+    tidyverse
+LazyData: true

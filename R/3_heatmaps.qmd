@@ -1,0 +1,47 @@
+---
+title: "heatmaps"
+output: html_document
+date: "2023-01-11"
+---
+
+```{r, message=FALSE, error=FALSE}
+
+source(here::here("R/libraries.R"))
+source(here::here("R/functions.R"))
+source(here::here("R/metadata.R"))
+
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+
+set.seed(123)
+
+load(here::here("data/df_long_mean_pre.rda"))
+load(here::here("data/df_long_pre.rda"))
+load(here::here("data/se_res_pre.rda"))
+
+```
+
+Heatmap pre
+```{r}
+
+df_heatmap_pre <- SummarizedExperiment::assay(se_res_pre)
+
+#Heatmap
+heatmap_pre <- pheatmap(df_heatmap_pre,
+    scale = "row",
+    cluster_rows = T,
+    annotation_col = dplyr::select(metadata, "fiber_type"),
+    annotation_colors=list(fiber_type=c(I="#069DBF",II="#024059")),
+    clustering_distance_cols="euclidean",
+    show_rownames = T,
+    color=colorRampPalette(c("navy", "white", "red"))(50),
+    cellwidth =10,
+    cellheight = 10,
+    border_color = "white"
+    )
+
+ggplot2::ggsave('data/figures/heatmap_pre.pdf', plot=heatmap_pre, height=15, width=15, limitsize = FALSE)
+
+
+```
+
+

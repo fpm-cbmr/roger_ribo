@@ -1,0 +1,157 @@
+---
+title: "1_limma"
+output: html_document
+date: "2022-12-25"
+---
+
+Load in libraries and functions
+```{r, message=FALSE, error=FALSE}
+source(here::here("R/libraries.R"))
+source(here::here("R/functions.R"))
+source(here::here("R/metadata.R"))
+
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+
+#Load in SummarizedExperiment file
+load(here::here("data/se_raw.rda"))
+
+```
+
+Subset data frame and metadata for only pre and resistance training.
+```{r}
+se_res_pre <- se_raw[, se_raw$intervention == 'resistance']
+se_res_pre <- se_res_pre[, se_res_pre$time == 'pre']
+
+metadata_res_pre <- metadata[metadata$intervention == 'resistance' & metadata$time =='pre',]
+
+```
+
+Subset SE for only ribosomal proteins. Load in GO-annotations from UniProt. Then, filter for only cytosolic ribosomal proteins.
+```{r}
+#Load keywords and go terms
+annotations <- read_xlsx(here::here('data-raw/keywords.xlsx')) %>% 
+    dplyr::rename_with(snakecase::to_snake_case) %>% 
+    dplyr::select(c("gene_names", "keywords", "gene_ontology_biological_process", "gene_ontology_cellular_component", "gene_ontology_molecular_function")) %>% 
+    dplyr::rename(gobp = gene_ontology_biological_process,
+                  gocc = gene_ontology_cellular_component,
+                  gomf = gene_ontology_molecular_function,
+                  protein = gene_names) %>% 
+    dplyr::mutate(protein = gsub("\\ .*","", protein)) %>% 
+    dplyr::mutate(protein = make.names(protein, unique=TRUE), protein)
+
+#Intermittently, convert the se (SummarizedExperiment) to a df (DataFrame). Move column names to column.
+df_res_pre <- SummarizedExperiment::assay(se_res_pre) %>% 
+    tibble::rownames_to_column("protein")
+
+#Merge annotations into se_res_pre dataframe
+df_res_pre <- df_res_pre %>% 
+    merge(annotations, by="protein", all.x = T)
+
+#Subset dataframe for only cytosolic ribosomal proteins. Also, return 'protein' to rownames and remove annotation columns
+df_res_pre <- df_res_pre %>% 
+    dplyr::filter(grepl('cytosolic ribosome', gocc, ignore.case = T)) %>% 
+    tibble::column_to_rownames('protein') %>% 
+    dplyr::select(starts_with("s_"))
+
+#Back into a se
+se_res_pre <- PhosR::PhosphoExperiment(assay = list(df_res_pre), colData=metadata_res_pre)
+
+```
+
+Check out distribution of missing values with specified filtering stringency (modify as needed, Roger)
+```{r}
+#Missing values before filtering
+missing_plot(se_res_pre) 
+
+#After filtering
+missing_plot(selectGrps(se_res_pre, colData(se_res_pre)$fiber_type, 0.7, n=1)) 
+
+#ggplot2::ggsave(here::here('data/figures/missing_values/missing.pdf'), height= 10, width = 20)
+
+```
+
+For now, continue with filtering for 70% valid values in at least one fiber type
+```{r}
+se_res_pre <- selectGrps(se_res_pre, colData(se_res_pre)$fiber_type, 0.7, n=1)
+
+usethis::use_data(se_res_pre, overwrite = TRUE)
+
+```
+
+Limma analysis
+```{r}
+design_pre <- model.matrix(~0+ se_res_pre$fiber_type)
+
+colnames(design_pre)=c("i", "ii")
+
+correlation_pre <- duplicateCorrelation(SummarizedExperiment::assay(se_res_pre), design_pre, block=se_res_pre$id)
+
+contrast_pre <- makeContrasts(ii - i,
+                             levels = design_pre)
+
+fit_pre <- eBayes(lmFit(SummarizedExperiment::assay(se_res_pre), design_pre, block=se_res_pre$id, correlation=correlation_pre$consensus))
+
+fit2_pre <- eBayes(contrasts.fit(fit_pre, contrast_pre))
+
+results_pre <- topTable(fit2_pre, coef = 1, number = Inf, sort.by = "logFC") %>% 
+    dplyr::mutate(xiao = 10^-(sqrt(log10(1/(P.Value^logFC))^2))) %>% 
+    dplyr::mutate(protein = row.names(.),
+                  q = qvalue(.$P.Value)$qvalues,
+                  qiao = qvalue(.$xiao)$qvalues,
+                  "-log10p" = -log10(.$P.Value),
+                  regulated_xiao = ifelse(xiao < 0.05, "+", ""),
+                  regulated_qiao = ifelse(qiao < 0.05, "+", ""),
+                  regulated_q = ifelse(q < 0.05, "+", "")
+                  )%>% 
+    arrange(desc(logFC))
+
+#Write results to excel file   
+write_xlsx(as.data.frame(results_pre), 'data/limma/results_pre.xlsx') #Overall results
+write_xlsx(as.data.frame(dplyr::filter(results_pre, logFC>0 & xiao < 0.05)), 'data/limma/results_higer_in_type_ii.xlsx')
+write_xlsx(as.data.frame(dplyr::filter(results_pre, logFC<0 & xiao < 0.05)), 'data/limma/results_higher_in_type_i.xlsx')
+write_xlsx(as.data.frame(dplyr::filter(results_pre, xiao > 0.05)), 'data/limma/results_not_different.xlsx')
+
+#Save results to 'data' folder
+usethis::use_data(results_pre, overwrite = TRUE)
+
+```
+
+# Data export for figures
+
+Creating a long form data set. This will be used for making figures.
+```{r}
+
+#Create long form data frame for all data
+df_long_pre <- assay(se_res_pre) %>% 
+    rownames_to_column(var="protein") %>% 
+    melt(id.var="protein") %>% # Make data long form
+    dplyr::rename(sample = variable,
+           abundance = value) %>% 
+    merge((metadata_res_pre %>% rownames_to_column("sample")), by="sample") #Nested function. Merge with metadata, but first metadata has its row names moved to a column called "sample" which is then used for merging.
+
+#Export for figures
+write_xlsx(df_long_pre, "data/df_long_pre.xlsx")
+
+#Save to data folder
+usethis::use_data(df_long_pre, overwrite = TRUE)
+
+```
+
+Create a long form data set with mean and median abundances. For figures.
+```{r}
+df_long_mean_pre <- df_long_pre %>% 
+  dplyr::group_by(protein, fiber_type) %>%
+  dplyr::summarise(mean = mean(abundance, na.rm = TRUE),
+                   median = median(abundance, na.rm = TRUE),
+                   sd = sd(abundance, na.rm = TRUE)
+              ) %>% 
+    ungroup()
+
+#Export for figures
+write_xlsx(df_long_mean_pre, "data/df_long_mean_pre.xlsx")
+
+#Save to data folder
+usethis::use_data(df_long_mean_pre, overwrite = TRUE)
+
+```
+

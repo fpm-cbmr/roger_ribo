@@ -1,0 +1,85 @@
+---
+title: "proteomic_figures"
+output: html_document
+date: "2022-12-29"
+---
+
+Load in libraries and functions
+```{r, message=FALSE, error=FALSE}
+
+source(here::here("R/libraries.R"))
+source(here::here("R/functions.R"))
+source(here::here("R/data_files_and_results.R"))
+source(here::here("R/metadata.R"))
+
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+
+#Load in data files
+load(here::here("data/df_long_pre.rda"))
+load(here::here("data/df_long_mean_pre.rda"))
+
+```
+
+Type I, pre
+```{r}
+ranked_type_i_pre <- df_long_mean_pre %>% 
+    dplyr::filter(fiber_type == 'I') %>% 
+    dplyr::mutate(mean = 2^mean) %>% 
+    dplyr::mutate(mean = log10(mean)) %>% 
+    dplyr::mutate(label = dplyr::case_when(
+        protein == "RPL38" ~ protein,
+        protein == "RPS13" ~ protein,
+        protein == "RPL10A" ~ protein,
+        protein == "RPS18" ~ protein)
+        )
+
+ggplot2::ggplot(ranked_type_i_pre, aes(x = reorder(protein, mean), y = mean, label = label))+
+    geom_point(size = 4, alpha = 0.5)+
+    geom_text_repel(point.size=4, size=4, min.segment.length = 0, box.padding = 2)+
+    theme(
+        axis.text.x= element_text(angle = 90, vjust = 0.5, hjust=1, color="black", size=8),
+        panel.background = element_rect(color = "black", fill=NA, size = 0.5),
+        panel.grid.minor=element_blank(),
+        panel.grid.major = element_blank(),
+        plot.background = element_blank(),
+        axis.line = element_line(color="black", size = 0.5),
+        axis.text = element_text(color="black")
+    )+
+    ggtitle("Type I fiber pools (Pre)")+
+    labs(y="Log10 expression", x="Protein")
+
+ggplot2::ggsave(here::here('data/figures/ranked_type_i_pre.pdf'))
+
+```
+
+Type IIa, pre
+```{r}
+ranked_type_ii_pre <- df_long_mean_pre %>% 
+    dplyr::filter(fiber_type == 'II') %>% 
+    dplyr::mutate(mean = 2^mean) %>% 
+    dplyr::mutate(mean = log10(mean)) %>% 
+    dplyr::mutate(label = dplyr::case_when(
+        protein == "RPL38" ~ protein,
+        protein == "RPS13" ~ protein,
+        protein == "RPL10A" ~ protein,
+        protein == "RPS18" ~ protein)
+        )
+
+ggplot2::ggplot(ranked_type_ii_pre, aes(x = reorder(protein, mean), y = mean, label = label))+
+    geom_point(size = 4, alpha = 0.5)+
+    geom_text_repel(point.size=4, size=4, min.segment.length = 0, box.padding = 3)+
+    theme(
+        axis.text.x= element_text(angle = 90, vjust = 0.5, hjust=1, color="black", size=8),
+        panel.background = element_rect(color = "black", fill=NA, size = 0.5),
+        panel.grid.minor=element_blank(),
+        panel.grid.major = element_blank(),
+        plot.background = element_blank(),
+        axis.line = element_line(color="black", size = 0.5),
+        axis.text = element_text(color="black")
+    )+
+    ggtitle("Type II fiber pools (Pre)")+
+    labs(y="Log10 expression", x="Protein")
+
+ggplot2::ggsave(here::here('data/figures/ranked_type_ii_pre.pdf'))
+
+```
